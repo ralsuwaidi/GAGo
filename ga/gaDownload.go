@@ -1,17 +1,22 @@
-package githubarchive
+package ga
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	humanize "github.com/dustin/go-humanize"
+)
+
+const (
+	layoutISO = "2006-01-02"
 )
 
 // WriteCounter counts the number of bytes written to it. It implements to the io.Writer interface
@@ -27,6 +32,7 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
+// PrintProgress prints progress to stdout
 func (wc WriteCounter) PrintProgress() {
 	// Clear the line by using a character return to go back to the start and remove
 	// the remaining characters by filling it with spaces
@@ -39,7 +45,7 @@ func (wc WriteCounter) PrintProgress() {
 
 // GetDownloadLink returns string depending
 func GetDownloadLink(year, month, day, hour int) (constructURL string, filePath string) {
-	githubArchiveURL := "https://data.gharchive.org/"
+	gaURL := "https://data.gharchive.org/"
 	endURL := ".json.gz"
 
 	//convert to string
@@ -64,7 +70,7 @@ func GetDownloadLink(year, month, day, hour int) (constructURL string, filePath 
 	filePath += endURL
 
 	// construct URL
-	constructURL = githubArchiveURL + filePath
+	constructURL = gaURL + filePath
 
 	return constructURL, filePath
 
@@ -74,8 +80,22 @@ func GetDownloadLink(year, month, day, hour int) (constructURL string, filePath 
 // vlidates 2021010101
 func IsValidDate(date string) bool {
 
+	// make sure string is valid
 	match, err := regexp.MatchString("^[0-9]{10,11}$", date)
 	if err != nil {
+		panic(err)
+	}
+
+	dateFormat := date[0:4] + "-" + date[4:6] + "-" + date[6:8]
+	t, err := time.Parse(layoutISO, dateFormat)
+	if err != nil {
+		panic(err)
+	}
+
+	// check time
+	// TODO: check for hour
+	if time.Now().Before(t) {
+		err = errors.New("Date must be before the current date")
 		panic(err)
 	}
 
@@ -127,10 +147,37 @@ func DownloadFile(filepath string, url string) error {
 	return nil
 }
 
-func gUnzip(filepath string) error {
-	cmd := exec.Command("gunzip", "-d", filepath)
-	err := cmd.Run()
+// GUnzip unzip gunzip file
+func GUnzip(filepath string) error {
 
-	fmt.Println("done unzipping ", filepath)
+	// open file for reading
+	fi, err := os.Open(filepath)
+	if err != nil {
+		return err
+	}
+	defer fi.Close()
+
+	// gzip reader
+	fz, err := gzip.NewReader(fi)
+	if err != nil {
+		return err
+	}
+	defer fz.Close()
+
+	// Create the file
+	out, err := os.Create(filepath[:len(filepath)-3])
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// copy gunzip to out
+	_, err = io.Copy(out, fz)
+	if err != nil {
+		return err
+	}
+
+	// delete gz file
+	err = os.Remove(filepath)
 	return err
 }

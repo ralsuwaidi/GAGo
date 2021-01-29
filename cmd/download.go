@@ -1,18 +1,3 @@
-/*
-Copyright © 2021 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
@@ -20,56 +5,62 @@ import (
 	"fmt"
 	"strconv"
 
-	githubarchive "github.com/ralsuwaidi/GAGo/ga"
+	ga "github.com/ralsuwaidi/GAGo/ga"
 	"github.com/spf13/cobra"
 )
 
 // downloadCmd represents the download command
-var downloadCmd = &cobra.Command{
-	Use:   "download",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+var (
+	// unzip .gz if true
+	unzip bool
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("requires a date argument")
-		}
-		// make sure date is valid
-		if githubarchive.IsValidDate(args[0]) {
-			return nil
-		}
-		return fmt.Errorf("invalid date: %s", args[0])
-	},
-	Run: func(cmd *cobra.Command, args []string) {
+	downloadCmd = &cobra.Command{
+		Use:   "download 20210101013",
+		Short: "Downloads a single GitHub Archive file",
+		Long:  `Downloads a single Github Archive gz file.`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return errors.New("requires a date argument")
+			}
+			// make sure date is valid
+			if ga.IsValidDate(args[0]) {
+				return nil
+			}
+			return fmt.Errorf("invalid date: %s", args[0])
+		},
+		Run: func(cmd *cobra.Command, args []string) {
 
-		year, err := strconv.Atoi(args[0][0:4])
-		if err != nil {
-			panic(err)
-		}
-		month, err := strconv.Atoi(args[0][4:6])
-		if err != nil {
-			panic(err)
-		}
-		day, err := strconv.Atoi(args[0][6:8])
-		if err != nil {
-			panic(err)
-		}
-		hour, err := strconv.Atoi(args[0][8:])
-		if err != nil {
-			panic(err)
-		}
-		gaURL, filePath := githubarchive.GetDownloadLink(year, month, day, hour)
-		err = githubarchive.DownloadFile(filePath, gaURL)
-		if err != nil {
-			panic(err)
-		}
+			// convert string to int
+			year, err := strconv.Atoi(args[0][0:4])
+			if err != nil {
+				panic(err)
+			}
+			month, err := strconv.Atoi(args[0][4:6])
+			if err != nil {
+				panic(err)
+			}
+			day, err := strconv.Atoi(args[0][6:8])
+			if err != nil {
+				panic(err)
+			}
+			hour, err := strconv.Atoi(args[0][8:])
+			if err != nil {
+				panic(err)
+			}
 
-	},
-}
+			// download
+			gaURL, filePath := ga.GetDownloadLink(year, month, day, hour)
+			err = ga.DownloadFile(filePath, gaURL)
+			if err != nil {
+				panic(err)
+			}
+
+			if unzip {
+				ga.GUnzip(filePath)
+			}
+		},
+	}
+)
 
 func init() {
 	rootCmd.AddCommand(downloadCmd)
@@ -82,5 +73,5 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// downloadCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	downloadCmd.Flags().BoolVarP(&unzip, "unzip", "u", false, "Unzip .gz file")
 }
