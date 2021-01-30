@@ -13,6 +13,8 @@ import (
 var (
 	// unzip .gz if true
 	unzip bool
+	// send to mongo if true
+	mongo bool
 
 	downloadCmd = &cobra.Command{
 		Use:   "download 20210101013",
@@ -47,7 +49,7 @@ var (
 			if err != nil {
 				panic(err)
 			}
-			ga.InsertPost("title", "ee")
+
 			// download
 			gaURL, filePath := ga.GetDownloadLink(year, month, day, hour)
 			err = ga.DownloadFile(filePath, gaURL)
@@ -55,10 +57,16 @@ var (
 				panic(err)
 			}
 
-			// unzip if flag exist
-			if unzip {
+			// dont unzip if flag exist
+			if !unzip {
 				ga.GUnzip(filePath)
 			}
+
+			// send to mongo
+			if mongo {
+				ga.PushToMongo(filePath[:len(filePath)-3])
+			}
+
 		},
 	}
 )
@@ -69,4 +77,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	downloadCmd.Flags().BoolVarP(&unzip, "unzip", "u", false, "Unzip .gz file")
+	downloadCmd.Flags().BoolVarP(&mongo, "mongo", "m", false, "Send events to mongo")
 }

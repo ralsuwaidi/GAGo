@@ -109,7 +109,6 @@ func DownloadFile(filepath string, url string) error {
 	// check if file exists
 	if _, err := os.Stat(filepath); err == nil {
 		return errors.New("file already exists")
-
 	}
 
 	// Create the file, but give it a tmp file extension, this means we won't overwrite a
